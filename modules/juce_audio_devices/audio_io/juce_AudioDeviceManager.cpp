@@ -220,10 +220,14 @@ void AudioDeviceManager::audioDeviceListChanged()
         {
             closeAudioDevice();
 
+#ifndef JUCE_NO_AUTOREPLUG
             if (auto e = createStateXml())
                 initialiseFromXML (*e, true, preferredDeviceName, &currentSetup);
             else
                 initialiseDefault (preferredDeviceName, &currentSetup);
+#else
+            DBG ("[JUCE] not initializing after deconnection");
+#endif
         }
 
         updateCurrentSetup();
