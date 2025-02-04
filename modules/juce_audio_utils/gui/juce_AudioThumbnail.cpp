@@ -39,38 +39,30 @@ struct AudioThumbnail::MinMaxValue
 {
     MinMaxValue() noexcept
     {
-        values[0] = 0;
-        values[1] = 0;
+        values[0] = 0.0f;
+        values[1] = 0.0f;
     }
 
-    inline void set (const int8 newMin, const int8 newMax) noexcept
+    inline void set (float newMin, float newMax) noexcept
     {
         values[0] = newMin;
         values[1] = newMax;
     }
 
-    inline int8 getMinValue() const noexcept        { return values[0]; }
-    inline int8 getMaxValue() const noexcept        { return values[1]; }
+    inline float getMinValue() const noexcept { return values[0]; }
+    inline float getMaxValue() const noexcept { return values[1]; }
 
     inline void setFloat (Range<float> newRange) noexcept
     {
-        // Workaround for an ndk armeabi compiler bug which crashes on signed saturation
-       #if JUCE_ANDROID
-        Range<float> limitedRange (jlimit (-1.0f, 1.0f, newRange.getStart()),
-                                   jlimit (-1.0f, 1.0f, newRange.getEnd()));
-        values[0] = (int8) (limitedRange.getStart() * 127.0f);
-        values[1] = (int8) (limitedRange.getEnd()   * 127.0f);
-       #else
-        values[0] = (int8) jlimit (-128, 127, roundToInt (newRange.getStart() * 127.0f));
-        values[1] = (int8) jlimit (-128, 127, roundToInt (newRange.getEnd()   * 127.0f));
-       #endif
+        values[0] = jlimit (-1.0f, 1.0f, newRange.getStart());
+        values[1] = jlimit (-1.0f, 1.0f, newRange.getEnd());
 
-        if (values[0] == values[1])
+        if (approximatelyEqual (values[0], values[1]))
         {
-            if (values[1] == 127)
-                values[0]--;
+            if (values[1] >= 1.0f)
+                values[0] -= 0.0001f;
             else
-                values[1]++;
+                values[1] += 0.0001f;
         }
     }
 
@@ -79,17 +71,25 @@ struct AudioThumbnail::MinMaxValue
         return values[1] > values[0];
     }
 
-    inline int getPeak() const noexcept
+    inline float getPeak() const noexcept
     {
-        return jmax (std::abs ((int) values[0]),
-                     std::abs ((int) values[1]));
+        return jmax (std::abs (values[0]), std::abs (values[1]));
     }
 
-    inline void read (InputStream& input)      { input.read (values, 2); }
-    inline void write (OutputStream& output)   { output.write (values, 2); }
+    inline void read (InputStream& input)
+    {
+        values[0] = input.readFloat();
+        values[1] = input.readFloat();
+    }
 
-private:
-    int8 values[2];
+    inline void write (OutputStream& output)
+    {
+        output.writeFloat (values[0]);
+        output.writeFloat (values[1]);
+    }
+
+    private:
+    float values[2];
 };
 
 
@@ -412,8 +412,8 @@ public:
         {
             endSample = jmin (endSample, data.size() - 1);
 
-            int8 mx = -128;
-            int8 mn = 127;
+            float mx = -1.0f;
+            float mn = 1.0f;
 
             while (startSample <= endSample)
             {
@@ -432,7 +432,7 @@ public:
             }
         }
 
-        result.set (1, 0);
+        result.set (0.0f, 0.0f);
     }
 
     void write (const MinMaxValue* values, int startIndex, int numValues)
@@ -450,10 +450,10 @@ public:
 
     void resetPeak() noexcept
     {
-        peakLevel = -1;
+        peakLevel = -1.0f;
     }
 
-    int getPeak() noexcept
+    float getPeak() noexcept
     {
         if (peakLevel < 0)
         {
@@ -471,7 +471,7 @@ public:
 
 private:
     Array<MinMaxValue> data;
-    int peakLevel = -1;
+    float peakLevel = -1.0f;
 
     void ensureSize (int thumbSamples)
     {
@@ -510,7 +510,7 @@ public:
                 auto topY = (float) area.getY();
                 auto bottomY = (float) area.getBottom();
                 auto midY = (topY + bottomY) * 0.5f;
-                auto vscale = verticalZoomFactor * (bottomY - topY) / 256.0f;
+                auto vscale = verticalZoomFactor * (bottomY - topY) / 2.0f;
                 float incr = 1.0f / oversample;
 
                 auto* cacheData = getData (channelNum, clip.getX() - area.getX());
@@ -943,12 +943,12 @@ int64 AudioThumbnail::getNumSamplesFinished() const noexcept
 float AudioThumbnail::getApproximatePeak() const
 {
     const ScopedLock sl (lock);
-    int peak = 0;
+    float peak = 0.0f;
 
     for (auto* c : channels)
         peak = jmax (peak, c->getPeak());
 
-    return (float) jlimit (0, 127, peak) / 127.0f;
+    return jlimit (0.0f, 1.0f, peak);
 }
 
 void AudioThumbnail::getApproximateMinMax (double startTime, double endTime, int channelIndex,
@@ -966,8 +966,8 @@ void AudioThumbnail::getApproximateMinMax (double startTime, double endTime, int
         data->getMinMax (jmax (0, firstThumbIndex), lastThumbIndex, result);
     }
 
-    minValue = result.getMinValue() / 128.0f;
-    maxValue = result.getMaxValue() / 128.0f;
+    minValue = result.getMinValue();
+    maxValue = result.getMaxValue();
 }
 
 void AudioThumbnail::drawChannel (Graphics& g, const Rectangle<int>& area, double startTime,
