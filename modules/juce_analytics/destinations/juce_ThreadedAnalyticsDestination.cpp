@@ -147,6 +147,7 @@ void ThreadedAnalyticsDestination::EventDispatcher::addToQueue (const AnalyticsE
 {
     const ScopedLock lock (queueAccess);
     eventQueue.push_back (event);
+    while (eventQueue.size() > maxQueueSize) eventQueue.pop_front();
 }
 
 
