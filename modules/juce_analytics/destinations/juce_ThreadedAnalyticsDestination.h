@@ -215,6 +215,8 @@ private:
         Atomic<int> batchPeriodMilliseconds { 1000 };
 
         Array<AnalyticsEvent> eventsToSend;
+
+        size_t maxQueueSize = 1000;
     };
 
     const String destinationName;
