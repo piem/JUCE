@@ -43,7 +43,7 @@ struct AudioThumbnail::MinMaxValue
         values[1] = 0.0f;
     }
 
-    inline void set (float newMin, float newMax) noexcept
+    inline void set (const float newMin, const float newMax) noexcept
     {
         values[0] = newMin;
         values[1] = newMax;
