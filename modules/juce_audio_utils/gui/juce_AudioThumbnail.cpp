@@ -217,9 +217,9 @@ public:
                 levels.insertMultiple (0, {}, (int) reader->numChannels - levels.size());
 
             int64 sampleIndex = (int64) readPosition;
-            double fraction1 = readPosition - sampleIndex;
+            double fraction1 = readPosition - (double)sampleIndex;
             // limit over sample borders to ensure capture of peaks
-            double fraction2 = jmin (nextReadPosition - sampleIndex, 1.0);
+            double fraction2 = jmin (nextReadPosition - (double)sampleIndex, 1.0);
 
             AudioBuffer<float> tempBuffer (nChan, 2);
 
@@ -511,7 +511,7 @@ public:
                 auto bottomY = (float) area.getBottom();
                 auto midY = (topY + bottomY) * 0.5f;
                 auto vscale = verticalZoomFactor * (bottomY - topY) / 2.0f;
-                float incr = 1.0f / oversample;
+                float incr = 1.0f / (float)oversample;
 
                 auto* cacheData = getData (channelNum, clip.getX() - area.getX());
 
@@ -609,7 +609,7 @@ private:
 
                 if (sample >= 0)
                 {
-                    if (sample >= levelData->lengthInSamples)
+                    if (sample >= (double)levelData->lengthInSamples)
                     {
                         for (int chan = 0; chan < numChannelsCached; ++chan)
                             *getData (chan, i) = MinMaxValue();
